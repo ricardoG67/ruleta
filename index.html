@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#33aba0">
+<title>Ruleta - Y tú qué planes</title>
+<style>
+  html {
+    color-scheme: light;
+    background: #33aba0;
+  }
+
+  * { box-sizing: border-box; }
+  
+  html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: #33aba0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .wheel-container {
+    position: relative;
+    width: min(90vw, 90vh, 500px);
+    height: min(90vw, 90vh, 500px);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Soporte curvo (delgado arriba, gordito abajo) detrás de la ruleta */
+  .stand{
+    position: absolute;
+    top: 78%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 115%;
+    height: 115%;
+    pointer-events: none;
+    z-index: 1;
+    filter: drop-shadow(0 12px 28px rgba(0,0,0,.25));
+  }
+
+  .wheel-container svg#wheel {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 50%;
+    box-shadow: 0 10px 30px rgba(0,0,0,.3);
+    position: relative;
+    z-index: 5;
+  }
+  
+  .pointer {
+    position: absolute; 
+    top: -5px; 
+    left: 50%; 
+    transform: translateX(-50%);
+    width: 0; 
+    height: 0; 
+    border-left: 15px solid transparent; 
+    border-right: 15px solid transparent;
+    border-top: 25px solid #0f172a; 
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));
+    z-index: 10;
+  }
+
+  /* Modal */
+  .modal {
+    display: none; 
+    position: fixed; 
+    inset: 0; 
+    background: rgba(0,0,0,.55);
+    align-items: center; 
+    justify-content: center; 
+    z-index: 1000;
+    padding: 16px;
+  }
+  
+  .modal.show { display: flex; }
+  
+  .modal-content {
+    width: 100%; 
+    max-width: min(400px, calc(100vw - 32px));
+    background: #fff; 
+    border-radius: 16px; 
+    padding: clamp(16px, 4vw, 24px);
+    box-shadow: 0 12px 30px rgba(0,0,0,.25); 
+    text-align: center;
+    margin: 16px;
+  }
+  
+  .modal h2 { 
+    margin: 6px 0 16px; 
+    color: #0f172a;
+    font-size: clamp(1.2rem, 4vw, 1.5rem);
+  }
+  
+  .btn {
+    display: inline-flex; 
+    align-items: center; 
+    justify-content: center;
+    padding: clamp(10px, 2.5vw, 12px) clamp(20px, 5vw, 24px); 
+    border-radius: 12px; 
+    border: none;
+    background: #33aba0; 
+    color: #fff; 
+    font-weight: 800; 
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(0,0,0,.12);
+    transition: all .2s ease;
+    font-size: clamp(12px, 3vw, 14px);
+    min-height: 44px; /* Para touch targets */
+  }
+  
+  .btn:hover { 
+    background: #2fa197; 
+    transform: translateY(-1px); 
+    box-shadow: 0 10px 24px rgba(0,0,0,.18);
+  }
+
+  /* Hover effect en la ruleta */
+  .wheel-container:hover svg#wheel {
+    transform: scale(1.02);
+    transition: transform 0.2s ease;
+  }
+
+  .spin-text {
+    position: absolute;
+    bottom: clamp(-80px, -15vw, -60px);
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font-weight: 700;
+    font-size: clamp(12px, 3.5vw, 16px);
+    text-shadow: 0 2px 4px rgba(0,0,0,.3);
+    animation: pulse 2s infinite;
+    z-index: 10;
+    white-space: nowrap;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+  }
+
+  /* Tablets */
+  @media (max-width: 768px) and (min-width: 481px) {
+    .wheel-container {
+      width: min(85vw, 85vh, 450px);
+      height: min(85vw, 85vh, 450px);
+    }
+    
+    .pointer {
+      border-left: 13px solid transparent; 
+      border-right: 13px solid transparent;
+      border-top: 22px solid #0f172a; 
+    }
+    
+    .stand {
+      width: 118%;
+      height: 118%;
+      top: 77%;
+    }
+  }
+
+  /* Móviles grandes */
+  @media (max-width: 480px) and (min-width: 376px) {
+    body {
+      overflow: auto;
+      padding: 10px;
+    }
+    
+    .wheel-container {
+      width: min(88vw, 88vh, 350px);
+      height: min(88vw, 88vh, 350px);
+    }
+    
+    .pointer {
+      border-left: 12px solid transparent; 
+      border-right: 12px solid transparent;
+      border-top: 20px solid #0f172a; 
+    }
+    
+    .stand {
+      width: 125%;
+      height: 125%;
+      top: 76%;
+    }
+  }
+
+  /* Móviles pequeños */
+  @media (max-width: 375px) {
+    body {
+      overflow: auto;
+      padding: 8px;
+    }
+    
+    .wheel-container {
+      width: min(92vw, 85vh, 280px);
+      height: min(92vw, 85vh, 280px);
+    }
+    
+    .pointer {
+      top: -3px;
+      border-left: 10px solid transparent; 
+      border-right: 10px solid transparent;
+      border-top: 18px solid #0f172a; 
+    }
+    
+    .stand {
+      width: 130%;
+      height: 130%;
+      top: 75%;
+    }
+    
+    .spin-text {
+      font-size: 12px;
+      bottom: -45px;
+    }
+  }
+
+  /* Landscape en móviles */
+  @media (max-height: 500px) and (orientation: landscape) {
+    body {
+      overflow: auto;
+      padding: 5px;
+    }
+    
+    .wheel-container {
+      width: min(70vh, 70vw, 350px);
+      height: min(70vh, 70vw, 350px);
+    }
+    
+    .spin-text {
+      bottom: -35px;
+      font-size: 11px;
+    }
+    
+    .modal-content {
+      padding: 16px;
+      margin: 8px;
+    }
+  }
+
+  /* Pantallas muy pequeñas */
+  @media (max-width: 320px) {
+    .wheel-container {
+      width: min(95vw, 80vh, 250px);
+      height: min(95vw, 80vh, 250px);
+    }
+    
+    .pointer {
+      border-left: 8px solid transparent; 
+      border-right: 8px solid transparent;
+      border-top: 15px solid #0f172a; 
+    }
+    
+    .stand {
+      width: 135%;
+      height: 135%;
+      top: 74%;
+    }
+  }
+
+  /* Touch devices */
+  @media (hover: none) and (pointer: coarse) {
+    .wheel-container:hover svg#wheel {
+      transform: none;
+    }
+    
+    .wheel-container:active svg#wheel {
+      transform: scale(0.98);
+    }
+    
+    .btn {
+      min-height: 48px; /* Mejor para touch */
+    }
+  }
+
+  /* Pantallas de alta densidad */
+  @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .wheel-container svg#wheel {
+      box-shadow: 0 8px 25px rgba(0,0,0,.35);
+    }
+    
+    .pointer {
+      filter: drop-shadow(0 1px 3px rgba(0,0,0,.4));
+    }
+  }
+
+  
+</style>
+</head>
+<body>
+  <div class="wheel-container" onclick="spin()" id="wheelContainer">
+
+    <!-- SOPORTE CURVO (delgado→gordito) -->
+    <svg class="stand" viewBox="0 0 600 500" aria-hidden="true" >
+      <defs>
+        <filter id="innerShadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feOffset dx="0" dy="-2"/>
+          <feGaussianBlur stdDeviation="4" result="blur"/>
+          <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+        </filter>
+      </defs>
+      <path d="
+        M300 40
+        C 292 88, 276 132, 248 178
+        C 220 224, 174 282, 130 348
+        C 112 375, 100 405, 100 435
+        Q 300 485, 500 435
+        C 500 405, 488 375, 470 348
+        C 426 282, 380 224, 352 178
+        C 324 132, 308 88, 300 40 Z"
+        fill="#8b5cf6" filter="url(#innerShadow)"/>
+    </svg>
+
+    <div class="pointer"></div>
+
+    <svg id="wheel" viewBox="0 0 400 400" role="img" aria-label="Ruleta con categorías">
+      <!-- La ruleta se dibuja por JS -->
+    </svg>
+
+    <div class="spin-text">Toca para girar</div>
+  </div>
+
+  <!-- Modal resultado -->
+  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-content">
+      <h2 id="modal-title">¡Resultado!</h2>
+      <p id="modal-text"></p>
+      <button id="modal-ok" class="btn" style="margin-top:16px;">¡Genial!</button>
+    </div>
+  </div>
+
+  <!-- Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- Audio del drum roll -->
+  <audio id="drum" src="multimedia/drum-roll-sound-effect-278576.mp3" preload="auto"></audio>
+
+<script>
+/* ====== Config ====== */
+const SEGMENTOS = [
+  "ATRACTIVOS TURÍSTICOS",
+  "ACTIVIDADES", 
+  "GASTRONOMÍA",
+  "DANZAS",
+  "ATRACTIVOS TURÍSTICOS",
+  "ACTIVIDADES",
+  "GASTRONOMÍA", 
+  "DANZAS"
+];
+
+const COLS = ["#33aba0","#2fa197","#2a968d","#238a81"];
+
+/* ====== Variables globales ====== */
+const wheel = document.getElementById('wheel');
+const modal = document.getElementById('modal');
+const modalText = document.getElementById('modal-text');
+const modalOk = document.getElementById('modal-ok');
+const wheelContainer = document.getElementById('wheelContainer');
+
+let currentRotation = 0;
+let spinning = false;
+
+/* ====== Audio ====== */
+function playDrum(){
+  const drum = document.getElementById('drum');
+  if(!drum) return;
+  drum.loop = false;
+  drum.currentTime = 0;
+  drum.volume = 0.55;
+  drum.play().catch(()=>{});
+}
+
+function stopDrum(){
+  const drum = document.getElementById('drum');
+  if(!drum) return;
+  drum.pause();
+  drum.currentTime = 0;
+}
+
+/* ====== Función para calcular tamaño de texto responsivo ====== */
+function getResponsiveTextSize() {
+  const containerWidth = wheelContainer.offsetWidth;
+  if (containerWidth < 280) return 7;
+  if (containerWidth < 350) return 8;
+  if (containerWidth < 400) return 9;
+  if (containerWidth < 450) return 10;
+  return 11;
+}
+
+/* ====== Dibujo de la ruleta ====== */
+function drawWheel() {
+  const viewSize = 400;
+  const centerX = viewSize / 2;
+  const centerY = viewSize / 2;
+  const radius = 180;
+  
+  wheel.innerHTML = '';
+  
+  const n = SEGMENTOS.length;
+  const anglePerSegment = (Math.PI * 2) / n;
+  
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('id', 'wheel-group');
+  
+  const textSize = getResponsiveTextSize();
+  
+  for (let i = 0; i < n; i++) {
+    const startAngle = i * anglePerSegment - Math.PI / 2;
+    const endAngle = (i + 1) * anglePerSegment - Math.PI / 2;
+    
+    const x1 = centerX + radius * Math.cos(startAngle);
+    const y1 = centerY + radius * Math.sin(startAngle);
+    const x2 = centerX + radius * Math.cos(endAngle);
+    const y2 = centerY + radius * Math.sin(endAngle);
+    
+    const largeArcFlag = anglePerSegment > Math.PI ? 1 : 0;
+    
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const d = [
+      `M ${centerX} ${centerY}`,
+      `L ${x1} ${y1}`,
+      `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+      'Z'
+    ].join(' ');
+    
+    path.setAttribute('d', d);
+    path.setAttribute('fill', COLS[i % COLS.length]);
+    path.setAttribute('stroke', 'white');
+    path.setAttribute('stroke-width', '2');
+    g.appendChild(path);
+    
+    // Texto
+    const textAngle = startAngle + anglePerSegment / 2;
+    const textRadius = radius * 0.65;
+    const textX = centerX + textRadius * Math.cos(textAngle);
+    const textY = centerY + textRadius * Math.sin(textAngle);
+    
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', textX);
+    text.setAttribute('y', textY);
+    text.setAttribute('fill', '#fff');
+    text.setAttribute('font-size', textSize);
+    text.setAttribute('font-weight', '900');
+    text.setAttribute('font-family', 'Poppins, Arial, sans-serif');
+    text.setAttribute('letter-spacing', '0.5px');
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('style', 'text-shadow: 1px 1px 2px rgba(0,0,0,.4);');
+    
+    const rotationAngle = (textAngle + Math.PI / 2) * (180 / Math.PI);
+    text.setAttribute('transform', `rotate(${rotationAngle} ${textX} ${textY})`);
+    
+    const words = SEGMENTOS[i].split(' ');
+    if (words.length > 1) {
+      const tspan1 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      tspan1.textContent = words[0];
+      tspan1.setAttribute('x', textX);
+      tspan1.setAttribute('dy', '-0.3em');
+      text.appendChild(tspan1);
+      
+      const tspan2 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      tspan2.textContent = words.slice(1).join(' ');
+      tspan2.setAttribute('x', textX);
+      tspan2.setAttribute('dy', '1.2em');
+      text.appendChild(tspan2);
+    } else {
+      text.textContent = SEGMENTOS[i];
+    }
+    
+    g.appendChild(text);
+  }
+  
+  wheel.appendChild(g);
+  
+  // Círculo exterior morado
+  const outerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  outerCircle.setAttribute('cx', centerX);
+  outerCircle.setAttribute('cy', centerY);
+  outerCircle.setAttribute('r', radius + 10);
+  outerCircle.setAttribute('fill', 'none');
+  outerCircle.setAttribute('stroke', '#8b5cf6');
+  outerCircle.setAttribute('stroke-width', '20');
+  wheel.appendChild(outerCircle);
+  
+  // Círculo central
+  const centerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  centerCircle.setAttribute('cx', centerX);
+  centerCircle.setAttribute('cy', centerY);
+  centerCircle.setAttribute('r', '50');
+  centerCircle.setAttribute('fill', 'white');
+  centerCircle.setAttribute('stroke', '#e5e7eb');
+  centerCircle.setAttribute('stroke-width', '2');
+  wheel.appendChild(centerCircle);
+  
+  // Logo en el centro
+  const image = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+  image.setAttributeNS('http://www.w3.org/1999/xlink', 'href', 'multimedia/y-tu-que-planes.webp');
+  image.setAttribute('x', centerX - 35);
+  image.setAttribute('y', centerY - 35);
+  image.setAttribute('width', '70');
+  image.setAttribute('height', '70');
+  image.setAttribute('clip-path', 'circle(35px at center)');
+  wheel.appendChild(image);
+}
+
+/* ====== Animación de giro ====== */
+function spin() {
+  if (spinning) return;
+  
+  spinning = true;
+  wheelContainer.style.pointerEvents = 'none';
+  
+  stopDrum();
+  playDrum();
+
+  const wheelGroup = document.getElementById('wheel-group');
+  
+  wheelGroup.style.transition = 'none';
+  wheelGroup.style.transform = `rotate(${currentRotation}deg)`;
+  wheelGroup.offsetHeight; // reflow
+  
+  const spins = 5 + Math.random() * 3;
+  const finalAngle = Math.random() * 360;
+  const totalRotation = spins * 360 + finalAngle;
+  const targetRotation = currentRotation + totalRotation;
+  
+  wheelGroup.style.transformOrigin = '200px 200px';
+  wheelGroup.style.transition = 'transform 4.76s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+  wheelGroup.style.transform = `rotate(${targetRotation}deg)`;
+  
+  setTimeout(() => {
+    currentRotation = targetRotation;
+    spinning = false;
+    wheelContainer.style.pointerEvents = 'auto';
+
+    const n = SEGMENTOS.length;
+    const anglePerSegment = 360 / n;
+    const pointerAngle = 0; // arriba
+    const normalizedAngle = (currentRotation % 360 + 360) % 360;
+    const adjustedAngle = (360 - normalizedAngle + pointerAngle) % 360;
+    const index = Math.floor(adjustedAngle / anglePerSegment) % n;
+    const result = SEGMENTOS[index];
+    
+    modalText.innerHTML = `<strong style="font-size: clamp(1.2em, 4vw, 1.8em); color: #33aba0;">${result}</strong>`;
+    modal.classList.add('show');
+    
+    if (typeof confetti !== 'undefined') {
+      confetti({
+        particleCount: 150,
+        spread: 100,
+        origin: { y: 0.6 },
+        colors: ['#33aba0', '#2fa197', '#2a968d', '#238a81']
+      });
+    }
+  }, 4760);
+}
+
+/* ====== Listeners ====== */
+modalOk.addEventListener('click', () => modal.classList.remove('show'));
+modal.addEventListener('click', (e) => {
+  if (e.target === modal) modal.classList.remove('show');
+});
+
+// Redibuja la ruleta si cambia el tamaño de pantalla
+window.addEventListener('resize', () => {
+  if (!spinning) {
+    drawWheel();
+  }
+});
+
+document.addEventListener('click', function initOnFirstClick() {
+  document.removeEventListener('click', initOnFirstClick);
+}, { once: true });
+
+/* ====== Inicializar ====== */
+drawWheel();
+</script>
+
+</body>
+</html>
